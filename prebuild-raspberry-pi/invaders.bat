@@ -1,0 +1,1 @@
+java -cp gdx.jar;gdx-backend.jar;gdx-invaders.jar;gdx-natives.jar;gdx-joal.jar;jlayer-1.0.1-libgdx.jar;jorbis.jar;jogl\gluegen-rt.jar;jogl\jogl-all.jar;jogl\joal.jar com.badlogic.gdxinvaders.GdxInvadersDesktop
