@@ -27,6 +27,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.media.opengl.GLCapabilities;
+import javax.media.opengl.GLProfile;
 import javax.media.opengl.awt.GLCanvas;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
@@ -45,6 +47,10 @@ import com.badlogic.gdx.backends.jogl.JoglGraphics.JoglDisplayMode;
 import com.badlogic.gdx.backends.joal.OpenALAudio;
 import com.badlogic.gdx.utils.Clipboard;
 import com.badlogic.gdx.utils.GdxRuntimeException;
+import com.jogamp.newt.awt.NewtCanvasAWT;
+import com.jogamp.newt.event.WindowListener;
+import com.jogamp.newt.event.WindowUpdateEvent;
+import com.jogamp.newt.opengl.GLWindow;
 
 /** An implemenation of the {@link Application} interface based on Jogl for Windows, Linux and Mac. Instantiate this class with
  * apropriate parameters and then register {@link ApplicationListener} or {@link InputProcessor} instances.
@@ -56,7 +62,7 @@ public final class JoglApplication implements Application {
 	protected final JoglNet net;
 	JoglFiles files;
 	OpenALAudio audio;
-	JFrame frame;
+	
 	List<Runnable> runnables = new ArrayList<Runnable>();
 	List<Runnable> executedRunnables = new ArrayList<Runnable>();
 	int logLevel = LOG_INFO;
@@ -71,6 +77,7 @@ public final class JoglApplication implements Application {
 	 * @param height the height of the surface in pixels
 	 * @param useGL20IfAvailable wheter to use OpenGL 2.0 if it is available or not */
 	public JoglApplication (final ApplicationListener listener, final String title, final int width, final int height,
+		
 		final boolean useGL20IfAvailable) {
 		final JoglApplicationConfiguration config = new JoglApplicationConfiguration();
 		net = new JoglNet();
@@ -78,42 +85,34 @@ public final class JoglApplication implements Application {
 		config.width = width;
 		config.height = height;
 		config.useGL20 = useGL20IfAvailable;
-
-		if (!SwingUtilities.isEventDispatchThread()) {
-			try {
-				SwingUtilities.invokeAndWait(new Runnable() {
-					public void run () {
-						initialize(listener, config);
-					}
-				});
-			} catch (Exception e) {
-				throw new GdxRuntimeException("Creating window failed", e);
-			}
-		} else {
-			config.useGL20 = useGL20IfAvailable;
-			initialize(listener, config);
-		}
+		initialize(listener, config);
+			
 	}
 
 	public JoglApplication (final ApplicationListener listener, final JoglApplicationConfiguration config) {
 		net = new JoglNet();
-		if (!SwingUtilities.isEventDispatchThread()) {
-			try {
-				SwingUtilities.invokeAndWait(new Runnable() {
-					public void run () {
-						initialize(listener, config);
-					}
-				});
-			} catch (Exception e) {
-				throw new GdxRuntimeException("Creating window failed", e);
-			}
-		} else {
-			initialize(listener, config);
-		}
+		initialize(listener, config);
+//		if (!SwingUtilities.isEventDispatchThread()) {
+//			try {
+//				SwingUtilities.invokeAndWait(new Runnable() {
+//					public void run () {
+//						initialize(listener, config);
+//					}
+//				});
+//			} catch (Exception e) {
+//				throw new GdxRuntimeException("Creating window failed", e);
+//			}
+//		} else {
+//			initialize(listener, config);
+//		}
 	}
+	
 
+	
 	void initialize (ApplicationListener listener, JoglApplicationConfiguration config) {
+		
 		JoglNativesLoader.load();
+		
 		graphics = new JoglGraphics(listener, config);
 		input = new JoglInput(graphics.getCanvas());
 		audio = new OpenALAudio(16, config.audioDeviceBufferCount, config.audioDeviceBufferSize);
@@ -123,80 +122,62 @@ public final class JoglApplication implements Application {
 		Gdx.graphics = JoglApplication.this.getGraphics();
 		Gdx.input = JoglApplication.this.getInput();
 		Gdx.audio = JoglApplication.this.getAudio();
-		Gdx.files = JoglApplication.this.getFiles();
-
-		if (!config.fullscreen) {
-			frame = new JFrame(config.title);
-			graphics.getCanvas().setPreferredSize(new Dimension(config.width, config.height));
-			frame.setSize(config.width + frame.getInsets().left + frame.getInsets().right, frame.getInsets().top
-				+ frame.getInsets().bottom + config.height);
-			frame.add(graphics.getCanvas(), BorderLayout.CENTER);
-			frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-			frame.setLocationRelativeTo(null);
-			frame.addWindowListener(windowListener);
-
-			frame.pack();
-			frame.setVisible(true);
-			graphics.create();
-		} else {
-			GraphicsEnvironment genv = GraphicsEnvironment.getLocalGraphicsEnvironment();
-			GraphicsDevice device = genv.getDefaultScreenDevice();
-			frame = new JFrame(config.title);
-			graphics.getCanvas().setPreferredSize(new Dimension(config.width, config.height));
-			frame.setSize(config.width + frame.getInsets().left + frame.getInsets().right, frame.getInsets().top
-				+ frame.getInsets().bottom + config.height);
-			frame.add(graphics.getCanvas(), BorderLayout.CENTER);
-			frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-			frame.setLocationRelativeTo(null);
-			frame.addWindowListener(windowListener);
-			frame.setUndecorated(true);
-			frame.setResizable(false);
-			frame.pack();
-			frame.setVisible(true);
-			java.awt.DisplayMode desktopMode = device.getDisplayMode();
-			try {
-				device.setFullScreenWindow(frame);
-				JoglDisplayMode mode = graphics.findBestMatch(config.width, config.height);
-				if (mode == null)
-					throw new GdxRuntimeException("Couldn't set fullscreen mode " + config.width + "x" + config.height);
-				device.setDisplayMode(mode.mode);
-			} catch (Throwable e) {
-				e.printStackTrace();
-				device.setDisplayMode(desktopMode);
-				device.setFullScreenWindow(null);
-				frame.dispose();
-				audio.dispose();
-				System.exit(-1);
-			}
-			graphics.create();
-		}
+		Gdx.files = JoglApplication.this.getFiles();	
+        
+        GLWindow canvas = graphics.getCanvas();
+		canvas.addWindowListener(windowListener);
+		
+		graphics.create();
+		
+		canvas.setVisible(true);
+		canvas.setPointerVisible(true);
+		
 	}
 
-	final WindowAdapter windowListener = new WindowAdapter() {
+	WindowListener windowListener = new WindowListener() {
+		
 		@Override
-		public void windowOpened (WindowEvent arg0) {
-			graphics.getCanvas().requestFocus();
-			graphics.getCanvas().requestFocusInWindow();
+		public void windowResized(com.jogamp.newt.event.WindowEvent arg0) {
+			
 		}
-
+		
 		@Override
-		public void windowIconified (WindowEvent arg0) {
+		public void windowRepaint(WindowUpdateEvent arg0) {
+			// TODO Auto-generated method stub
+			
 		}
-
+		
 		@Override
-		public void windowDeiconified (WindowEvent arg0) {
+		public void windowMoved(com.jogamp.newt.event.WindowEvent arg0) {
+			// TODO Auto-generated method stub
+			
 		}
-
+		
 		@Override
-		public void windowClosing (WindowEvent arg0) {
+		public void windowLostFocus(com.jogamp.newt.event.WindowEvent arg0) {
+			// TODO Auto-generated method stub
+			
+		}
+		
+		@Override
+		public void windowGainedFocus(com.jogamp.newt.event.WindowEvent arg0) {
+			// TODO Auto-generated method stub
+			
+		}
+		
+		@Override
+		public void windowDestroyed(com.jogamp.newt.event.WindowEvent arg0) {
 			graphics.setContinuousRendering(true);
 			graphics.pause();
 			graphics.destroy();
 			audio.dispose();
-			frame.remove(graphics.getCanvas());
+		}
+		
+		@Override
+		public void windowDestroyNotify(com.jogamp.newt.event.WindowEvent arg0) {
 		}
 	};
-
+	
 	/** {@inheritDoc} */
 	@Override
 	public Audio getAudio () {
@@ -240,16 +221,6 @@ public final class JoglApplication implements Application {
 	@Override
 	public long getNativeHeap () {
 		return getJavaHeap();
-	}
-
-	/** @return the JFrame of the application. */
-	public JFrame getJFrame () {
-		return frame;
-	}
-
-	/** @return the GLCanvas of the application. */
-	public GLCanvas getGLCanvas () {
-		return graphics.canvas;
 	}
 
 	Map<String, Preferences> preferences = new HashMap<String, Preferences>();
@@ -332,7 +303,7 @@ public final class JoglApplication implements Application {
 		postRunnable(new Runnable() {
 			@Override
 			public void run () {
-				frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
+				graphics.getCanvas().destroy();
 			}
 		});
 	}

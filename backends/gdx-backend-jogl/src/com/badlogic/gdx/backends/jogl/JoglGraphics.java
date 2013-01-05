@@ -39,11 +39,13 @@ import com.badlogic.gdx.Graphics;
 import com.badlogic.gdx.backends.joal.OpenALAudio;
 import com.badlogic.gdx.graphics.GL10;
 import com.badlogic.gdx.utils.GdxRuntimeException;
+import com.jogamp.newt.awt.NewtCanvasAWT;
 
 /** Implements the {@link Graphics} interface with Jogl.
  * 
  * @author mzechner */
 public class JoglGraphics extends JoglGraphicsBase implements GLEventListener {
+	
 	ApplicationListener listener = null;
 	boolean useGL2;
 	boolean created = false;
@@ -54,13 +56,29 @@ public class JoglGraphics extends JoglGraphicsBase implements GLEventListener {
 	boolean isFullscreen = false;
 
 	public JoglGraphics (ApplicationListener listener, JoglApplicationConfiguration config) {
+		
 		initialize(config);
-		if (listener == null) throw new GdxRuntimeException("RenderListener must not be null");
+		
+		if (listener == null) 
+			throw new GdxRuntimeException("RenderListener must not be null");
+		
 		this.listener = listener;
 		this.config = config;
 		this.isFullscreen = config.fullscreen;
 
 		desktopMode = (JoglDisplayMode)JoglApplicationConfiguration.getDesktopDisplayMode();
+		
+		canvas.setTitle(config.title);
+		canvas.setFullscreen(config.fullscreen);
+		
+		if ( config.fullscreen ) {
+			canvas.setSize(desktopMode.width, desktopMode.height);
+		}
+		else {
+			canvas.setUndecorated(false);
+			canvas.setSize(config.width, config.height);
+		}
+	
 	}
 
 	public void create () {
@@ -160,9 +178,10 @@ public class JoglGraphics extends JoglGraphicsBase implements GLEventListener {
 
 	@Override
 	public boolean supportsDisplayModeChange () {
-		GraphicsEnvironment genv = GraphicsEnvironment.getLocalGraphicsEnvironment();
-		GraphicsDevice device = genv.getDefaultScreenDevice();
-		return device.isFullScreenSupported() && (Gdx.app instanceof JoglApplication);
+		return true;
+//		GraphicsEnvironment genv = GraphicsEnvironment.getLocalGraphicsEnvironment();
+//		GraphicsDevice device = genv.getDefaultScreenDevice();
+//		return device.isFullScreenSupported() && (Gdx.app instanceof JoglApplication);
 	}
 
 	protected static class JoglDisplayMode extends DisplayMode {
@@ -181,14 +200,7 @@ public class JoglGraphics extends JoglGraphicsBase implements GLEventListener {
 
 	@Override
 	public void setTitle (String title) {
-		Container parent = canvas.getParent();
-		while (parent != null) {
-			if (parent instanceof JFrame) {
-				((JFrame)parent).setTitle(title);
-				return;
-			}
-			parent = parent.getParent();
-		}
+		canvas.setTitle(title);
 	}
 
 	@Override
@@ -226,110 +238,116 @@ public class JoglGraphics extends JoglGraphicsBase implements GLEventListener {
 
 	@Override
 	public boolean setDisplayMode (DisplayMode displayMode) {
-		if (!supportsDisplayModeChange()) return false;
-
-		GraphicsEnvironment genv = GraphicsEnvironment.getLocalGraphicsEnvironment();
-		GraphicsDevice device = genv.getDefaultScreenDevice();
-		final JFrame frame = findJFrame(canvas);
-		if (frame == null) return false;
-
-		// create new canvas, sharing the rendering context with the old canvas
-		// and pause the animator
-		super.pause();
-		GLCanvas newCanvas = new GLCanvas(canvas.getChosenGLCapabilities(), null, canvas.getContext(), device);
-		newCanvas.addGLEventListener(this);
-
-		JFrame newframe = new JFrame(frame.getTitle());
-		newframe.setUndecorated(true);
-		newframe.setResizable(false);
-		newframe.add(newCanvas, BorderLayout.CENTER);
-		newframe.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-		newframe.setLocationRelativeTo(null);
-		newframe.pack();
-		newframe.setVisible(true);
-
-		device.setFullScreenWindow(newframe);
-		device.setDisplayMode(((JoglDisplayMode)displayMode).mode);
-
-		initializeGLInstances(canvas);
-		this.canvas = newCanvas;
-		((JoglInput)Gdx.input).setListeners(canvas);
-		canvas.requestFocus();
-		newframe.addWindowListener(((JoglApplication)Gdx.app).windowListener);
-		((JoglApplication)Gdx.app).frame = newframe;
-		resume();
-
-		Gdx.app.postRunnable(new Runnable() {
-			public void run () {
-				SwingUtilities.invokeLater(new Runnable() {
-					@Override
-					public void run () {
-						frame.dispose();
-					}
-				});
-			}
-		});
-
-		isFullscreen = true;
+		canvas.setSize(displayMode.width, displayMode.height);
+		canvas.setFullscreen(true);
 		return true;
+//		return false;
+//		if (!supportsDisplayModeChange()) return false;
+//
+//		GraphicsEnvironment genv = GraphicsEnvironment.getLocalGraphicsEnvironment();
+//		GraphicsDevice device = genv.getDefaultScreenDevice();
+//		final JFrame frame = findJFrame(canvas);
+//		if (frame == null) return false;
+//
+//		// create new canvas, sharing the rendering context with the old canvas
+//		// and pause the animator
+//		super.pause();
+//		GLCanvas newCanvas = new GLCanvas(canvas.getChosenGLCapabilities(), null, canvas.getContext(), device);
+//		newCanvas.addGLEventListener(this);
+//
+//		JFrame newframe = new JFrame(frame.getTitle());
+//		newframe.setUndecorated(true);
+//		newframe.setResizable(false);
+//		newframe.add(newCanvas, BorderLayout.CENTER);
+//		newframe.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+//		newframe.setLocationRelativeTo(null);
+//		newframe.pack();
+//		newframe.setVisible(true);
+//
+//		device.setFullScreenWindow(newframe);
+//		device.setDisplayMode(((JoglDisplayMode)displayMode).mode);
+//
+//		initializeGLInstances(canvas);
+//		this.canvas = newCanvas;
+//		((JoglInput)Gdx.input).setListeners(canvas);
+//		canvas.requestFocus();
+//		newframe.addWindowListener(((JoglApplication)Gdx.app).windowListener);
+//		((JoglApplication)Gdx.app).frame = newframe;
+//		resume();
+//
+//		Gdx.app.postRunnable(new Runnable() {
+//			public void run () {
+//				SwingUtilities.invokeLater(new Runnable() {
+//					@Override
+//					public void run () {
+//						frame.dispose();
+//					}
+//				});
+//			}
+//		});
+//
+//		isFullscreen = true;
+//		return true;
 	}
 
 	private boolean setWindowedMode (int width, int height) {
-
-		GraphicsEnvironment genv = GraphicsEnvironment.getLocalGraphicsEnvironment();
-		GraphicsDevice device = genv.getDefaultScreenDevice();
-		if (device.isDisplayChangeSupported()) {
-			device.setDisplayMode(desktopMode.mode);
-			device.setFullScreenWindow(null);
-
-			final JFrame frame = findJFrame(canvas);
-			if (frame == null) return false;
-
-			// create new canvas, sharing the rendering context with the old canvas
-			// and pause the animator
-			super.pause();
-			GLCanvas newCanvas = new GLCanvas(canvas.getChosenGLCapabilities(), null, canvas.getContext(), device);
-			newCanvas.setBackground(Color.BLACK);
-			newCanvas.setPreferredSize(new Dimension(width, height));
-			newCanvas.addGLEventListener(this);
-
-			JFrame newframe = new JFrame(frame.getTitle());
-			newframe.setUndecorated(false);
-			newframe.setResizable(true);
-			newframe.setSize(width + newframe.getInsets().left + newframe.getInsets().right,
-				newframe.getInsets().top + newframe.getInsets().bottom + height);
-			newframe.add(newCanvas, BorderLayout.CENTER);
-			newframe.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-			newframe.setLocationRelativeTo(null);
-			newframe.pack();
-			newframe.setVisible(true);
-
-			initializeGLInstances(canvas);
-			this.canvas = newCanvas;
-			((JoglInput)Gdx.input).setListeners(canvas);
-			canvas.requestFocus();
-			newframe.addWindowListener(((JoglApplication)Gdx.app).windowListener);
-			((JoglApplication)Gdx.app).frame = newframe;
-			resume();
-
-			Gdx.app.postRunnable(new Runnable() {
-				public void run () {
-					SwingUtilities.invokeLater(new Runnable() {
-						@Override
-						public void run () {
-							frame.dispose();
-						}
-					});
-				}
-			});
-		} else {
-			final JFrame frame = findJFrame(canvas);
-			if (frame == null) return false;
-			frame.setSize(width + frame.getInsets().left + frame.getInsets().right, frame.getInsets().top + frame.getInsets().bottom
-				+ height);
-		}
-
+		canvas.setSize(width, height);
+		canvas.setFullscreen(false);
 		return true;
+//		GraphicsEnvironment genv = GraphicsEnvironment.getLocalGraphicsEnvironment();
+//		GraphicsDevice device = genv.getDefaultScreenDevice();
+//		if (device.isDisplayChangeSupported()) {
+//			device.setDisplayMode(desktopMode.mode);
+//			device.setFullScreenWindow(null);
+//
+//			final JFrame frame = findJFrame(canvas);
+//			if (frame == null) return false;
+//
+//			// create new canvas, sharing the rendering context with the old canvas
+//			// and pause the animator
+//			super.pause();
+//			GLCanvas newCanvas = new GLCanvas(canvas.getChosenGLCapabilities(), null, canvas.getContext(), device);
+//			newCanvas.setBackground(Color.BLACK);
+//			newCanvas.setPreferredSize(new Dimension(width, height));
+//			newCanvas.addGLEventListener(this);
+//
+//			JFrame newframe = new JFrame(frame.getTitle());
+//			newframe.setUndecorated(false);
+//			newframe.setResizable(true);
+//			newframe.setSize(width + newframe.getInsets().left + newframe.getInsets().right,
+//				newframe.getInsets().top + newframe.getInsets().bottom + height);
+//			newframe.add(newCanvas, BorderLayout.CENTER);
+//			newframe.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+//			newframe.setLocationRelativeTo(null);
+//			newframe.pack();
+//			newframe.setVisible(true);
+//
+//			initializeGLInstances(canvas);
+//			this.canvas = newCanvas;
+//			((JoglInput)Gdx.input).setListeners(canvas);
+//			canvas.requestFocus();
+//			newframe.addWindowListener(((JoglApplication)Gdx.app).windowListener);
+//			((JoglApplication)Gdx.app).frame = newframe;
+//			resume();
+//
+//			Gdx.app.postRunnable(new Runnable() {
+//				public void run () {
+//					SwingUtilities.invokeLater(new Runnable() {
+//						@Override
+//						public void run () {
+//							frame.dispose();
+//						}
+//					});
+//				}
+//			});
+//		} else {
+//			final JFrame frame = findJFrame(canvas);
+//			if (frame == null) return false;
+//			frame.setSize(width + frame.getInsets().left + frame.getInsets().right, frame.getInsets().top + frame.getInsets().bottom
+//				+ height);
+//		}
+//
+//		return true;
 	}
 
 	protected static JFrame findJFrame (Component component) {

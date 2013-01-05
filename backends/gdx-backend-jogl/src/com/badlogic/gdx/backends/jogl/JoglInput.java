@@ -26,18 +26,15 @@ import java.awt.Image;
 import java.awt.Point;
 import java.awt.Robot;
 import java.awt.Toolkit;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-import java.awt.event.MouseWheelEvent;
-import java.awt.event.MouseWheelListener;
+
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowFocusListener;
 import java.awt.image.BufferedImage;
+import java.io.Console;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Scanner;
 import java.util.Set;
 
 import javax.media.opengl.awt.GLCanvas;
@@ -58,8 +55,12 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.utils.Pool;
+import com.jogamp.newt.event.KeyListener;
+import com.jogamp.newt.event.MouseEvent;
+import com.jogamp.newt.event.MouseListener;
+import com.jogamp.newt.opengl.GLWindow;
 
-public class JoglInput implements Input, MouseMotionListener, MouseListener, MouseWheelListener, KeyListener {
+public class JoglInput implements Input, MouseListener, KeyListener {
 	class KeyEvent {
 		static final int KEY_DOWN = 0;
 		static final int KEY_UP = 1;
@@ -110,12 +111,12 @@ public class JoglInput implements Input, MouseMotionListener, MouseListener, Mou
 	Set<Integer> keys = new HashSet<Integer>();
 	Set<Integer> pressedButtons = new HashSet<Integer>();
 	InputProcessor processor;
-	GLCanvas canvas;
+	GLWindow canvas;
 	boolean catched = false;
 	Robot robot = null;
 	long currentEventTimeStamp;
-
-	public JoglInput (GLCanvas canvas) {
+	
+	public JoglInput (GLWindow canvas) {
 		setListeners(canvas);
 		try {
 			robot = new Robot(GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice());
@@ -124,23 +125,19 @@ public class JoglInput implements Input, MouseMotionListener, MouseListener, Mou
 		}
 	}
 
-	public void setListeners (GLCanvas canvas) {
+	public void setListeners (GLWindow canvas) {
+		
 		if (this.canvas != null) {
 			canvas.removeMouseListener(this);
-			canvas.removeMouseMotionListener(this);
-			canvas.removeMouseWheelListener(this);
 			canvas.removeKeyListener(this);
-			JFrame frame = JoglGraphics.findJFrame(canvas);
-
 		}
+		
 		canvas.addMouseListener(this);
-		canvas.addMouseMotionListener(this);
-		canvas.addMouseWheelListener(this);
 		canvas.addKeyListener(this);
-		canvas.setFocusTraversalKeysEnabled(false);
+		
 		this.canvas = canvas;
 	}
-
+	 
 	@Override
 	public float getAccelerometerX () {
 		return 0;
@@ -413,6 +410,7 @@ public class JoglInput implements Input, MouseMotionListener, MouseListener, Mou
 
 	@Override
 	public void mouseMoved (MouseEvent e) {
+		System.out.println("mouse moved");
 		synchronized (this) {
 			TouchEvent event = usedTouchEvents.obtain();
 			event.pointer = 0;
@@ -450,9 +448,9 @@ public class JoglInput implements Input, MouseMotionListener, MouseListener, Mou
 	}
 
 	private void checkCatched (MouseEvent e) {
-		if (catched && robot != null && canvas.isShowing()) {
-			int x = Math.max(0, Math.min(e.getX(), canvas.getWidth()) - 1) + canvas.getLocationOnScreen().x;
-			int y = Math.max(0, Math.min(e.getY(), canvas.getHeight()) - 1) + canvas.getLocationOnScreen().y;
+		if (catched && robot != null && canvas.isVisible()) {
+			int x = Math.max(0, Math.min(e.getX(), canvas.getWidth()) - 1) + canvas.getX();
+			int y = Math.max(0, Math.min(e.getY(), canvas.getHeight()) - 1) + canvas.getY();
 			if (e.getX() < 0 || e.getX() >= canvas.getWidth() || e.getY() < 0 || e.getY() >= canvas.getHeight()) {
 				robot.mouseMove(x, y);
 			}
@@ -511,7 +509,7 @@ public class JoglInput implements Input, MouseMotionListener, MouseListener, Mou
 	}
 
 	@Override
-	public void mouseWheelMoved (MouseWheelEvent e) {
+	public void mouseWheelMoved (MouseEvent e) {
 		synchronized (this) {
 			TouchEvent event = usedTouchEvents.obtain();
 			event.pointer = 0;
@@ -524,7 +522,9 @@ public class JoglInput implements Input, MouseMotionListener, MouseListener, Mou
 	}
 
 	@Override
-	public void keyPressed (java.awt.event.KeyEvent e) {
+	public void keyPressed (com.jogamp.newt.event.KeyEvent e) {
+		System.out.println("keyPressed");
+
 		synchronized (this) {
 			KeyEvent event = usedKeyEvents.obtain();
 			event.keyChar = 0;
@@ -538,7 +538,7 @@ public class JoglInput implements Input, MouseMotionListener, MouseListener, Mou
 	}
 
 	@Override
-	public void keyReleased (java.awt.event.KeyEvent e) {
+	public void keyReleased (com.jogamp.newt.event.KeyEvent e) {
 		synchronized (this) {
 			KeyEvent event = usedKeyEvents.obtain();
 			event.keyChar = 0;
@@ -552,7 +552,7 @@ public class JoglInput implements Input, MouseMotionListener, MouseListener, Mou
 	}
 
 	@Override
-	public void keyTyped (java.awt.event.KeyEvent e) {
+	public void keyTyped (com.jogamp.newt.event.KeyEvent e) {
 		synchronized (this) {
 			KeyEvent event = usedKeyEvents.obtain();
 			event.keyChar = e.getKeyChar();
@@ -729,16 +729,7 @@ public class JoglInput implements Input, MouseMotionListener, MouseListener, Mou
 	}
 
 	private void showCursor (boolean visible) {
-		if (!visible) {
-			Toolkit t = Toolkit.getDefaultToolkit();
-			Image i = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-			Cursor noCursor = t.createCustomCursor(i, new Point(0, 0), "none");
-			JFrame frame = JoglGraphics.findJFrame(canvas);
-			frame.setCursor(noCursor);
-		} else {
-			JFrame frame = JoglGraphics.findJFrame(canvas);
-			frame.setCursor(Cursor.getDefaultCursor());
-		}
+		canvas.setPointerVisible(visible);
 	}
 
 	@Override
@@ -770,9 +761,7 @@ public class JoglInput implements Input, MouseMotionListener, MouseListener, Mou
 
 	@Override
 	public void setCursorPosition (int x, int y) {
-		if (robot != null) {
-			robot.mouseMove(canvas.getLocationOnScreen().x + x, canvas.getLocationOnScreen().y + y);
-		}
+		canvas.warpPointer(x, y);
 	}
 
 	@Override
@@ -791,4 +780,5 @@ public class JoglInput implements Input, MouseMotionListener, MouseListener, Mou
 		// TODO Auto-generated method stub
 
 	}
+
 }

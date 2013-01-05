@@ -32,11 +32,12 @@ import com.badlogic.gdx.graphics.GL11;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.GLCommon;
 import com.badlogic.gdx.graphics.GLU;
+import com.jogamp.newt.opengl.GLWindow;
 
 public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 	static int major, minor;
 
-	GLCanvas canvas;
+	GLWindow canvas;
 	JoglAnimator animator;
 	boolean useGL2;
 	long frameStart = System.nanoTime();
@@ -53,7 +54,9 @@ public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 	GLU glu;
 
 	void initialize (JoglApplicationConfiguration config) {
-		GLCapabilities caps = new GLCapabilities(GLProfile.getMaxFixedFunc(true));
+		//GLCapabilities caps = new GLCapabilities(GLProfile.getMaxFixedFunc(true));
+        GLCapabilities caps = new GLCapabilities(GLProfile.get(GLProfile.GL2ES2));
+
 		caps.setRedBits(config.r);
 		caps.setGreenBits(config.g);
 		caps.setBlueBits(config.b);
@@ -64,8 +67,8 @@ public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 		caps.setSampleBuffers(config.samples > 0);
 		caps.setDoubleBuffered(true);
 
-		canvas = new GLCanvas(caps);
-		canvas.setBackground(Color.BLACK);
+		canvas = GLWindow.create(caps);
+		//canvas.setBackground(Color.BLACK);
 		canvas.addGLEventListener(this);
 		this.useGL2 = config.useGL20;
 		this.glu = new JoglGLU();
@@ -73,7 +76,7 @@ public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 
 	}
 
-	GLCanvas getCanvas () {
+	GLWindow getCanvas () {
 		return canvas;
 	}
 
@@ -103,10 +106,18 @@ public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 	}
 
 	void initializeGLInstances (GLAutoDrawable drawable) {
+		
 		String version = drawable.getGL().glGetString(GL.GL_VERSION);
 		String renderer = drawable.getGL().glGetString(GL.GL_RENDERER);
-		major = Integer.parseInt("" + version.charAt(0));
-		minor = Integer.parseInt("" + version.charAt(2));
+		
+		// parsing seems to fail on Raspberry PI.. GLES2 then.. 
+		
+		try {
+			major = Integer.parseInt("" + version.charAt(0));
+			minor = Integer.parseInt("" + version.charAt(2));
+		} catch (Exception e) {
+			major = 2;
+		}
 
 		if (useGL2 && major >= 2) {
 			gl20 = new JoglGL20();
