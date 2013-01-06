@@ -52,7 +52,11 @@ public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 	GLU glu;
 
 	void initialize (JoglApplicationConfiguration config) {
-		GLCapabilities caps = new GLCapabilities(GLProfile.getMaxFixedFunc(true));
+		
+		// RPI FIX: loading shader program fails, if not explicitly set to GLES2
+		//GLCapabilities caps = new GLCapabilities(GLProfile.getMaxFixedFunc(true));
+		GLCapabilities caps = new GLCapabilities(GLProfile.get(GLProfile.GL2ES2));
+		
 		caps.setRedBits(config.r);
 		caps.setGreenBits(config.g);
 		caps.setBlueBits(config.b);
@@ -102,10 +106,18 @@ public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 	}
 
 	void initializeGLInstances (GLAutoDrawable drawable) {
+		
 		String version = drawable.getGL().glGetString(GL.GL_VERSION);
 		String renderer = drawable.getGL().glGetString(GL.GL_RENDERER);
-		major = Integer.parseInt("" + version.charAt(0));
-		minor = Integer.parseInt("" + version.charAt(2));
+		
+		// RPI FIX: parsing of version number fails 
+		
+		try {
+			major = Integer.parseInt("" + version.charAt(0));
+			minor = Integer.parseInt("" + version.charAt(2));
+		} catch (NumberFormatException e) {
+			major = 2;
+		}
 
 		if (useGL2 && (major >= 2 || version.contains("2.1"))) { // special case for MESA, wtf... {
 			gl20 = new JoglGL20();
