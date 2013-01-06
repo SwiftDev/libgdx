@@ -16,22 +16,12 @@
 
 package com.badlogic.gdx.backends.jogl;
 
-import java.awt.BorderLayout;
-import java.awt.Dimension;
-import java.awt.GraphicsDevice;
-import java.awt.GraphicsEnvironment;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.media.opengl.GLCapabilities;
-import javax.media.opengl.GLProfile;
-import javax.media.opengl.awt.GLCanvas;
-import javax.swing.JFrame;
-import javax.swing.SwingUtilities;
+import javax.media.nativewindow.util.Dimension;
 
 import com.badlogic.gdx.Application;
 import com.badlogic.gdx.ApplicationListener;
@@ -47,9 +37,8 @@ import com.badlogic.gdx.backends.jogl.JoglGraphics.JoglDisplayMode;
 import com.badlogic.gdx.backends.joal.OpenALAudio;
 import com.badlogic.gdx.utils.Clipboard;
 import com.badlogic.gdx.utils.GdxRuntimeException;
-import com.jogamp.newt.awt.NewtCanvasAWT;
-import com.jogamp.newt.event.WindowListener;
-import com.jogamp.newt.event.WindowUpdateEvent;
+import com.jogamp.newt.event.WindowAdapter;
+import com.jogamp.newt.event.WindowEvent;
 import com.jogamp.newt.opengl.GLWindow;
 
 /** An implemenation of the {@link Application} interface based on Jogl for Windows, Linux and Mac. Instantiate this class with
@@ -62,7 +51,6 @@ public final class JoglApplication implements Application {
 	protected final JoglNet net;
 	JoglFiles files;
 	OpenALAudio audio;
-	
 	List<Runnable> runnables = new ArrayList<Runnable>();
 	List<Runnable> executedRunnables = new ArrayList<Runnable>();
 	int logLevel = LOG_INFO;
@@ -77,7 +65,6 @@ public final class JoglApplication implements Application {
 	 * @param height the height of the surface in pixels
 	 * @param useGL20IfAvailable wheter to use OpenGL 2.0 if it is available or not */
 	public JoglApplication (final ApplicationListener listener, final String title, final int width, final int height,
-		
 		final boolean useGL20IfAvailable) {
 		final JoglApplicationConfiguration config = new JoglApplicationConfiguration();
 		net = new JoglNet();
@@ -85,34 +72,16 @@ public final class JoglApplication implements Application {
 		config.width = width;
 		config.height = height;
 		config.useGL20 = useGL20IfAvailable;
-		initialize(listener, config);
-			
+        initialize(listener, config);
 	}
 
 	public JoglApplication (final ApplicationListener listener, final JoglApplicationConfiguration config) {
 		net = new JoglNet();
 		initialize(listener, config);
-//		if (!SwingUtilities.isEventDispatchThread()) {
-//			try {
-//				SwingUtilities.invokeAndWait(new Runnable() {
-//					public void run () {
-//						initialize(listener, config);
-//					}
-//				});
-//			} catch (Exception e) {
-//				throw new GdxRuntimeException("Creating window failed", e);
-//			}
-//		} else {
-//			initialize(listener, config);
-//		}
 	}
-	
 
-	
 	void initialize (ApplicationListener listener, JoglApplicationConfiguration config) {
-		
 		JoglNativesLoader.load();
-		
 		graphics = new JoglGraphics(listener, config);
 		input = new JoglInput(graphics.getCanvas());
 		audio = new OpenALAudio(16, config.audioDeviceBufferCount, config.audioDeviceBufferSize);
@@ -122,59 +91,19 @@ public final class JoglApplication implements Application {
 		Gdx.graphics = JoglApplication.this.getGraphics();
 		Gdx.input = JoglApplication.this.getInput();
 		Gdx.audio = JoglApplication.this.getAudio();
-		Gdx.files = JoglApplication.this.getFiles();	
-        
-        GLWindow canvas = graphics.getCanvas();
-		canvas.addWindowListener(windowListener);
-		
+		Gdx.files = JoglApplication.this.getFiles();
 		graphics.create();
-		
-		canvas.setVisible(true);
-		canvas.setPointerVisible(true);
-		
+		graphics.getCanvas().addWindowListener(windowListener);
+		graphics.getCanvas().setTitle(config.title);
+		graphics.getCanvas().setSize(config.width, config.height);
+		graphics.getCanvas().setUndecorated(config.fullscreen);
+		graphics.getCanvas().setFullscreen(config.fullscreen);
+		graphics.getCanvas().setVisible(true);
 	}
 
-	WindowListener windowListener = new WindowListener() {
-		
-		@Override
-		public void windowResized(com.jogamp.newt.event.WindowEvent arg0) {
-			
-		}
-		
-		@Override
-		public void windowRepaint(WindowUpdateEvent arg0) {
-			// TODO Auto-generated method stub
-			
-		}
-		
-		@Override
-		public void windowMoved(com.jogamp.newt.event.WindowEvent arg0) {
-			// TODO Auto-generated method stub
-			
-		}
-		
-		@Override
-		public void windowLostFocus(com.jogamp.newt.event.WindowEvent arg0) {
-			// TODO Auto-generated method stub
-			
-		}
-		
-		@Override
-		public void windowGainedFocus(com.jogamp.newt.event.WindowEvent arg0) {
-			// TODO Auto-generated method stub
-			
-		}
-		
-		@Override
-		public void windowDestroyed(com.jogamp.newt.event.WindowEvent arg0) {
-			graphics.setContinuousRendering(true);
-			graphics.pause();
-			graphics.destroy();
-			audio.dispose();
-		}
-		
-		@Override
-		public void windowDestroyNotify(com.jogamp.newt.event.WindowEvent arg0) {
+	WindowAdapter windowListener = new WindowAdapter() {
+		public void windowDestroyed(WindowEvent e) {
+            audio.dispose();
 		}
 	};
 	
@@ -221,6 +150,11 @@ public final class JoglApplication implements Application {
 	@Override
 	public long getNativeHeap () {
 		return getJavaHeap();
+	}
+
+	/** @return the GLCanvas of the application. */
+	public GLWindow getGLCanvas () {
+		return graphics.canvas;
 	}
 
 	Map<String, Preferences> preferences = new HashMap<String, Preferences>();
@@ -303,7 +237,8 @@ public final class JoglApplication implements Application {
 		postRunnable(new Runnable() {
 			@Override
 			public void run () {
-				graphics.getCanvas().destroy();
+				//FIXME maybe it is a bit brutal (and useless)
+				graphics.canvas.destroy();
 			}
 		});
 	}

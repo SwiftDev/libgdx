@@ -16,9 +16,8 @@
 
 package com.badlogic.gdx.backends.jogl;
 
-import java.awt.GraphicsDevice;
-import java.awt.GraphicsEnvironment;
-import java.awt.HeadlessException;
+/*import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;*/
 import java.util.ArrayList;
 
 import com.badlogic.gdx.Graphics;
@@ -73,30 +72,12 @@ public class JoglApplicationConfiguration {
 		this.fullscreen = true;
 	}
 
-	public static DisplayMode getDesktopDisplayMode () {
-		
-		java.awt.DisplayMode mode = null;
-		
-		try {
-			
-			GraphicsEnvironment genv = GraphicsEnvironment.getLocalGraphicsEnvironment();
-			GraphicsDevice device = genv.getDefaultScreenDevice();
-			
-			mode = device.getDisplayMode();//s()[0];
-			
-			if (mode == null) {
-				mode = new java.awt.DisplayMode(800, 600, 16, 60);
-				mode = device.getDisplayModes()[0];
-			}
-			
-			
-		} catch (Exception e) {
-			// headless mode, we still want to have some fun 
-			mode = new java.awt.DisplayMode(1280, 720, 16, 60);
-		}
-		
+	//TODO look at CubeMovie example to get all modes
+	/*public static DisplayMode getDesktopDisplayMode () {
+		GraphicsEnvironment genv = GraphicsEnvironment.getLocalGraphicsEnvironment();
+		GraphicsDevice device = genv.getDefaultScreenDevice();
+		java.awt.DisplayMode mode = device.getDisplayMode();
 		return new JoglDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRefreshRate(), mode.getBitDepth(), mode);
-
 	}
 
 	public static DisplayMode[] getDisplayModes () {
@@ -121,5 +102,5 @@ public class JoglApplicationConfiguration {
 		}
 
 		return modes.toArray(new DisplayMode[modes.size()]);
-	}
+	}*/
 }

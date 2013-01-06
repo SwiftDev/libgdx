@@ -16,12 +16,9 @@
 
 package com.badlogic.gdx.backends.jogl;
 
-import java.awt.Color;
-
 import javax.media.opengl.GL;
 import javax.media.opengl.GLAutoDrawable;
 import javax.media.opengl.GLProfile;
-import javax.media.opengl.awt.GLCanvas;
 import javax.media.opengl.GLCapabilities;
 import javax.media.opengl.GLEventListener;
 
@@ -33,12 +30,13 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.GLCommon;
 import com.badlogic.gdx.graphics.GLU;
 import com.jogamp.newt.opengl.GLWindow;
+import com.jogamp.opengl.util.Animator;
 
 public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 	static int major, minor;
 
 	GLWindow canvas;
-	JoglAnimator animator;
+	Animator animator;
 	boolean useGL2;
 	long frameStart = System.nanoTime();
 	long lastFrameTime = System.nanoTime();
@@ -54,9 +52,7 @@ public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 	GLU glu;
 
 	void initialize (JoglApplicationConfiguration config) {
-		//GLCapabilities caps = new GLCapabilities(GLProfile.getMaxFixedFunc(true));
-        GLCapabilities caps = new GLCapabilities(GLProfile.get(GLProfile.GL2ES2));
-
+		GLCapabilities caps = new GLCapabilities(GLProfile.getMaxFixedFunc(true));
 		caps.setRedBits(config.r);
 		caps.setGreenBits(config.g);
 		caps.setBlueBits(config.b);
@@ -84,7 +80,7 @@ public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 		frameStart = System.nanoTime();
 		lastFrameTime = frameStart;
 		deltaTime = 0;
-		animator = new JoglAnimator(canvas);
+		animator = new Animator(canvas);
 		animator.start();
 	}
 
@@ -100,26 +96,18 @@ public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 		frameStart = System.nanoTime();
 		lastFrameTime = frameStart;
 		deltaTime = 0;
-		animator = new JoglAnimator(canvas);
+		animator.resume();
 		animator.setRunAsFastAsPossible(true);
 		animator.start();
 	}
 
 	void initializeGLInstances (GLAutoDrawable drawable) {
-		
 		String version = drawable.getGL().glGetString(GL.GL_VERSION);
 		String renderer = drawable.getGL().glGetString(GL.GL_RENDERER);
-		
-		// parsing seems to fail on Raspberry PI.. GLES2 then.. 
-		
-		try {
-			major = Integer.parseInt("" + version.charAt(0));
-			minor = Integer.parseInt("" + version.charAt(2));
-		} catch (Exception e) {
-			major = 2;
-		}
+		major = Integer.parseInt("" + version.charAt(0));
+		minor = Integer.parseInt("" + version.charAt(2));
 
-		if (useGL2 && major >= 2) {
+		if (useGL2 && (major >= 2 || version.contains("2.1"))) { // special case for MESA, wtf... {
 			gl20 = new JoglGL20();
 			gl = gl20;
 		} else {
@@ -217,17 +205,7 @@ public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 	}
 
 	@Override
-	public void setContinuousRendering (boolean isContinuous) {
-		animator.setContinuousRendering(isContinuous);
-	}
-
-	@Override
-	public boolean isContinuousRendering () {
-		return animator.isContinuousRendering();
-	}
-
-	@Override
 	public void requestRendering () {
-		animator.requestRendering();
+		canvas.display();
 	}
 }
