@@ -16,6 +16,7 @@
 
 package com.badlogic.gdx.backends.jogl;
 
+import javax.media.nativewindow.NativeWindowFactory;
 import javax.media.opengl.GL;
 import javax.media.opengl.GLAutoDrawable;
 import javax.media.opengl.GLProfile;
@@ -52,11 +53,7 @@ public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 	GLU glu;
 
 	void initialize (JoglApplicationConfiguration config) {
-		
-		// RPI FIX: loading shader program fails, if not explicitly set to GLES2
-		//GLCapabilities caps = new GLCapabilities(GLProfile.getMaxFixedFunc(true));
-		GLCapabilities caps = new GLCapabilities(GLProfile.get(GLProfile.GL2ES2));
-		
+		GLCapabilities caps = new GLCapabilities(GLProfile.getDefault());
 		caps.setRedBits(config.r);
 		caps.setGreenBits(config.g);
 		caps.setBlueBits(config.b);
@@ -106,24 +103,14 @@ public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 	}
 
 	void initializeGLInstances (GLAutoDrawable drawable) {
-		
-		String version = drawable.getGL().glGetString(GL.GL_VERSION);
 		String renderer = drawable.getGL().glGetString(GL.GL_RENDERER);
-		
-		// RPI FIX: parsing of version number fails 
-		
-		try {
-			major = Integer.parseInt("" + version.charAt(0));
-			minor = Integer.parseInt("" + version.charAt(2));
-		} catch (NumberFormatException e) {
-			major = 2;
-		}
+		major = drawable.getGL().getContext().getGLVersionMajor();
+		minor = drawable.getGL().getContext().getGLVersionMinor();
 
-		if (useGL2 && (major >= 2 || version.contains("2.1"))) { // special case for MESA, wtf... {
+		if (useGL2 && drawable.getGLProfile().isGL2ES2()) {
 			gl20 = new JoglGL20();
 			gl = gl20;
 		} else {
-
 			if (major == 1 && minor < 5 || renderer.equals("Mirage Graphics3")) {
 				gl10 = new JoglGL10();
 			} else {
@@ -132,7 +119,6 @@ public abstract class JoglGraphicsBase implements Graphics, GLEventListener {
 			}
 			gl = gl10;
 		}
-
 		Gdx.gl = gl;
 		Gdx.gl10 = gl10;
 		Gdx.gl11 = gl11;
